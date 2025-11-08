@@ -1,0 +1,36 @@
+K3S_TOKEN = "mysecrettoken123"
+MASTER_IP = "192.168.56.110"
+WORKER_IP = "192.168.56.111"
+
+Vagrant.configure(2) do |config|
+    config.vm.box = "generic/debian12"
+
+    config.vm.provider "libvirt" do |v|
+        v.memory = 1024
+        v.cpus = 1
+        v.driver = "kvm"
+    end
+
+    config.vm.define "arbutnarS" do |control|
+        control.vm.hostname = "arbutnarS"
+        control.vm.network "private_network", ip: MASTER_IP
+        control.vm.provision "shell", inline: <<-SHELL
+            curl -sfL https://get.k3s.io  > /tmp/k3s-install.sh
+            
+            K3S_TOKEN=#{K3S_TOKEN} \
+            sh /tmp/k3s-install.sh --write-kubeconfig-mode 644 --node-ip=#{MASTER_IP} --advertise-address=#{MASTER_IP} --flannel-iface="eth1"
+        SHELL
+    end
+
+    config.vm.define "arbutnarSW" do |control|
+        control.vm.hostname = "arbutnarSW"
+        control.vm.network "private_network", ip: WORKER_IP
+        control.vm.provision "shell", inline: <<-SHELL
+            curl -sfL https://get.k3s.io > /tmp/k3s-install.sh
+
+            K3S_URL=https://#{MASTER_IP}:6443 \
+            K3S_TOKEN=#{K3S_TOKEN} \
+            sh /tmp/k3s-install.sh --node-ip=#{WORKER_IP}
+        SHELL
+    end
+end
