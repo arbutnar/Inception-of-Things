@@ -1,0 +1,51 @@
+MASTER_IP = "192.168.56.110"
+
+Vagrant.configure(2) do |config|
+    config.vm.box = "generic/debian12"
+
+    config.vm.provider "libvirt" do |v|
+        v.memory = 1024
+        v.cpus = 1
+        v.driver = "kvm"
+    end
+    
+    config.vm.synced_folder ".", "/vagrant", type: "nfs", nfs_version: 4, nfs_udp: false
+
+    config.vm.define "arbutnarS" do |control|
+        control.vm.hostname = "arbutnarS"
+        control.vm.network "private_network", ip: MASTER_IP
+        control.vm.provision "shell", inline: <<-SHELL
+            RESET='\033[0m'
+            PURPLE='\033[0;35m'
+
+            # Install Docker (required for k3d)
+            curl -L https://get.docker.com | bash
+            usermod -aG docker vagrant
+
+            # Install kubectl
+            curl -LO "https://dl.k8s.io/release/$(curl -L https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+            install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+
+            # Install k3d
+            curl -L https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
+
+            # Create cluster with k3d
+            k3d cluster create arbutnarS
+
+            # Deploy argocd in argocd namespace
+            kubectl create namespace argocd
+            kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+            kubectl wait --for=condition=ready pod --all -n argocd
+
+            # Create argocd application
+            kubectl apply -n argocd -f https://raw.githubusercontent.com/arbutnar/Inception-of-Things_p3/refs/heads/main/application.yaml
+
+            # Print argocd server password
+            echo -e "$PURPLE$(kubectl get secret -n argocd argocd-initial-admin-secret -oyaml | grep password | cut -d":" -f2 | tr -d ' ' | base64 -d)$RESET"
+
+            # Port-forward argocd server 
+            kubectl port-forward -n argocd svc/argocd-server 8080:443 --address 0.0.0.0
+        SHELL
+    end
+
+end
