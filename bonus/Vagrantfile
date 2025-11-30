@@ -1,0 +1,66 @@
+MASTER_IP = "192.168.56.110"
+
+Vagrant.configure(2) do |config|
+    config.vm.box = "generic/debian12"
+
+    config.vm.provider "libvirt" do |v|
+        v.memory = 6144
+        v.cpus = 4
+        v.driver = "kvm"
+    end
+    
+    config.vm.synced_folder ".", "/vagrant", type: "nfs", nfs_version: 4, nfs_udp: false
+
+    config.vm.define "arbutnarS" do |control|
+        control.vm.hostname = "arbutnarS"
+        control.vm.network "private_network", ip: MASTER_IP
+        control.vm.provision "shell", inline: <<-SHELL
+            
+            # Install Docker (required for k3d)
+            curl -fLsS https://get.docker.com | bash
+            usermod -aG docker vagrant
+
+            # Install kubectl
+            curl -fLsSO "https://dl.k8s.io/release/$(curl -fLsS https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+            install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+
+            # Install k3d
+            curl -fLsS https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
+
+            # Create cluster with k3d
+            k3d cluster create arbutnarS
+
+            # Make the k3d kubeconfig available to the vagrant user
+            mkdir -p /home/vagrant/.kube
+            k3d kubeconfig get arbutnarS > /home/vagrant/.kube/config
+            chown -R vagrant:vagrant /home/vagrant/.kube
+
+            # Deploy argocd in argocd namespace
+            kubectl create namespace argocd
+            curl -fLsS https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml -o /tmp/argocd-install.yaml
+            kubectl apply -n argocd -f /tmp/argocd-install.yaml
+            kubectl wait --for=condition=ready pod --all -n argocd --timeout=300s
+
+            # Install Helm v3 (stable) instead of the Helm 4 install script.
+            # Helm 4 install script has caused a Go runtime stack overflow
+            # for some charts; pin a stable Helm v3 binary instead.
+            HELM_VERSION="v3.12.3"
+            curl -fsSL -o /tmp/helm.tar.gz "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz"
+            tar -xzf /tmp/helm.tar.gz -C /tmp
+            install -o root -g root -m 0755 /tmp/linux-amd64/helm /usr/local/bin/helm
+            rm -rf /tmp/helm.tar.gz /tmp/linux-amd64
+
+            kubectl create namespace gitlab
+            helm repo add gitlab http://charts.gitlab.io/
+            helm repo update
+            helm upgrade --install gitlab gitlab/gitlab -n gitlab \
+                --version 9.6.1 \
+                --set installCertmanager=false \
+                --set global.ingress.configureCertmanager=false \
+                --set gitlab-runner.install=false \
+                --wait --timeout 600s
+
+        SHELL
+    end
+
+end
