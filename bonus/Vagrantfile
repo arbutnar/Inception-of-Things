@@ -1,50 +1,23 @@
-MASTER_IP = "192.168.56.110"
+MASTER_IP = "192.168.56.113"
 
 Vagrant.configure(2) do |config|
-    config.vm.box = "generic/debian12"
+    config.vm.box = "debian/bookworm64"
+    config.vm.synced_folder ".", "/vagrant", type: "nfs", disabled: true
 
     config.vm.provider "libvirt" do |v|
         v.memory = 6144
         v.cpus = 4
         v.driver = "kvm"
     end
-    
-    config.vm.synced_folder ".", "/vagrant", type: "nfs", nfs_version: 4, nfs_udp: false
 
     config.vm.define "arbutnarS" do |control|
         control.vm.hostname = "arbutnarS"
         control.vm.network "private_network", ip: MASTER_IP
+        control.vm.provision "shell", path: "../p3/scripts/provision.sh"
         control.vm.provision "shell", inline: <<-SHELL
-            
-            # Install Docker (required for k3d)
-            curl -fLsS https://get.docker.com | bash
-            usermod -aG docker vagrant
-
-            # Install kubectl
-            curl -fLsSO "https://dl.k8s.io/release/$(curl -fLsS https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-            install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
-
-            # Install k3d
-            curl -fLsS https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
-
-            # Create cluster with k3d
-            k3d cluster create arbutnarS
-
-            # Make the k3d kubeconfig available to the vagrant user
-            mkdir -p /home/vagrant/.kube
-            k3d kubeconfig get arbutnarS > /home/vagrant/.kube/config
-            chown -R vagrant:vagrant /home/vagrant/.kube
-
-            # Deploy argocd in argocd namespace
-            kubectl create namespace argocd
-            curl -fLsS https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml -o /tmp/argocd-install.yaml
-            kubectl apply -n argocd -f /tmp/argocd-install.yaml
-            kubectl wait --for=condition=ready pod --all -n argocd --timeout=300s
-
-            # Install Helm v3 (stable) instead of the Helm 4 install script.
-            # Helm 4 install script has caused a Go runtime stack overflow
-            # for some charts; pin a stable Helm v3 binary instead.
-            HELM_VERSION="v3.12.3"
+            # Install Helm v4 (stable) instead of the Helm 3 install script.
+            # for some charts; pin a stable Helm v4 binary instead.
+            HELM_VERSION="v4.0.0"
             curl -fsSL -o /tmp/helm.tar.gz "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz"
             tar -xzf /tmp/helm.tar.gz -C /tmp
             install -o root -g root -m 0755 /tmp/linux-amd64/helm /usr/local/bin/helm
@@ -58,8 +31,41 @@ Vagrant.configure(2) do |config|
                 --set installCertmanager=false \
                 --set global.ingress.configureCertmanager=false \
                 --set gitlab-runner.install=false \
-                --wait --timeout 600s
+                --set global.kas.enabled=false \
+                --set prometheus.install=false \
+                --set postgresql.metrics.enabled=false \
+                --set redis.metrics.enabled=false \
+                --set gitlab.gitlab-exporter.enabled=false \
+                --set global.grafana.enabled=false \
+                --set gitlab.gitlab-pages.enabled=false \
+                --set registry.enabled=false \
+                --set gitlab.webservice.minReplicas=1 \
+                --set gitlab.webservice.maxReplicas=1 \
+                --set gitlab.sidekiq.minReplicas=1 \
+                --set gitlab.sidekiq.maxReplicas=1 \
+                --set gitlab.gitlab-shell.minReplicas=1 \
+                --set gitlab.gitlab-shell.maxReplicas=1 \
+                --set nginx-ingress.controller.replicaCount=1 \
+                --set nginx-ingress.controller.service.type=NodePort
+            
+            kubectl wait --for=condition=ready pod --all -n gitlab --timeout=1200s
+            # Wait for core services
+            # echo "Waiting for GitLab webservice to be ready..."
+            # kubectl wait --for=condition=ready pod -n gitlab -l app=webservice --timeout=600s || true
+            
+            # # Get access info
+            # echo "=========================================="
+            # echo "GitLab Installation Complete!"
+            # echo "=========================================="
+            # HTTP_PORT=$(kubectl get svc -n gitlab gitlab-nginx-ingress-controller -o jsonpath='{.spec.ports[?(@.name=="http")].nodePort}')
+            # echo "GitLab URL: http://192.168.56.113:$HTTP_PORT"
+            # echo "Username: root"
+            # echo -n "Password: "
+            # kubectl get secret -n gitlab gitlab-gitlab-initial-root-password -ojsonpath='{.data.password}' 2>/dev/null | base64 --decode || echo "[Check logs if needed]"
+            # echo ""
+            # echo "=========================================="
 
+            # kubectl port-forward -n argocd svc/argocd-server 443:443 --address 0.0.0.0
         SHELL
     end
 
