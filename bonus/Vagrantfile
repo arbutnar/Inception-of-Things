@@ -13,16 +13,16 @@ Vagrant.configure(2) do |config|
     config.vm.define "arbutnarS" do |control|
         control.vm.hostname = "arbutnarS"
         control.vm.network "private_network", ip: MASTER_IP
-        control.vm.provision "shell", path: "../p3/scripts/provision.sh"
+        control.vm.provision "shell", path: "../p3/scripts/init.sh"
         control.vm.provision "shell", inline: <<-SHELL
-            # Install Helm v4 (stable) instead of the Helm 3 install script.
-            # for some charts; pin a stable Helm v4 binary instead.
-            HELM_VERSION="v4.0.0"
-            curl -fsSL -o /tmp/helm.tar.gz "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz"
+
+            # Install Helm
+            curl -fsSL -o /tmp/helm.tar.gz "https://get.helm.sh/helm-v4.0.0-linux-amd64.tar.gz"
             tar -xzf /tmp/helm.tar.gz -C /tmp
             install -o root -g root -m 0755 /tmp/linux-amd64/helm /usr/local/bin/helm
             rm -rf /tmp/helm.tar.gz /tmp/linux-amd64
 
+            # Deploy GitLab via Helm
             kubectl create namespace gitlab
             helm repo add gitlab http://charts.gitlab.io/
             helm repo update
@@ -46,27 +46,17 @@ Vagrant.configure(2) do |config|
                 --set gitlab.gitlab-shell.minReplicas=1 \
                 --set gitlab.gitlab-shell.maxReplicas=1 \
                 --set nginx-ingress.controller.replicaCount=1 \
-                --set nginx-ingress.controller.service.type=NodePort
-            
-            kubectl wait --for=condition=ready pod --all -n gitlab --timeout=1200s
-            # Wait for core services
-            # echo "Waiting for GitLab webservice to be ready..."
-            # kubectl wait --for=condition=ready pod -n gitlab -l app=webservice --timeout=600s || true
-            
-            # # Get access info
-            # echo "=========================================="
-            # echo "GitLab Installation Complete!"
-            # echo "=========================================="
-            # HTTP_PORT=$(kubectl get svc -n gitlab gitlab-nginx-ingress-controller -o jsonpath='{.spec.ports[?(@.name=="http")].nodePort}')
-            # echo "GitLab URL: http://192.168.56.113:$HTTP_PORT"
-            # echo "Username: root"
-            # echo -n "Password: "
-            # kubectl get secret -n gitlab gitlab-gitlab-initial-root-password -ojsonpath='{.data.password}' 2>/dev/null | base64 --decode || echo "[Check logs if needed]"
-            # echo ""
-            # echo "=========================================="
+                --set nginx-ingress.controller.service.type=NodePort \
+                --wait --timeout 900s
+
+            # Display initial GitLab root password
+            RESET='\e[0m'
+            CYAN='\e[1;36m'
+            echo -e "$CYAN$(kubectl get secret -n gitlab gitlab-gitlab-initial-root-password -ojsonpath='{.data.password}' 2>/dev/null | base64 --decode)$RESET"
 
             # kubectl port-forward -n argocd svc/argocd-server 443:443 --address 0.0.0.0
         SHELL
+        control.vm.provision "shell", path: "../p3/scripts/deploy_argocd.sh", args: ["#{MASTER_IP}", "443"]
     end
 
 end

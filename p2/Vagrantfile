@@ -13,12 +13,12 @@ Vagrant.configure(2) do |config|
         control.vm.hostname = "arbutnarS"
         control.vm.network "private_network", ip: MASTER_IP
         control.vm.provision "shell", inline: <<-SHELL
-            apt-get update && apt-get install -y curl
+            apt-get update -y && apt-get install -y curl
 
-            curl -sSLf https://get.k3s.io  > /tmp/k3s-install.sh
+            curl -sSLf https://get.k3s.io > /tmp/k3s-install.sh
             sh /tmp/k3s-install.sh --write-kubeconfig-mode 644 --node-ip=#{MASTER_IP} --advertise-address=#{MASTER_IP} --flannel-iface="eth1"
 
-            kubectl apply -f /vagrant
+            kubectl apply -f /vagrant/confs
         SHELL
     end
 
