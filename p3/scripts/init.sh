@@ -1,6 +1,8 @@
 #!/bin/bash
 
-apt-get update -y && apt-get install -y curl
+apt-get update -y && apt-get install -y curl vim 
+
+echo "export KUBE_EDITOR=vim" >> /etc/profile.d/set_env_var.sh
 
 curl -sSLf https://get.docker.com | bash
 usermod -aG docker vagrant
@@ -16,3 +18,7 @@ mkdir -p /home/vagrant/.kube
 k3d kubeconfig get arbutnarS > /home/vagrant/.kube/config
 chown -R vagrant:vagrant /home/vagrant/.kube
 chmod 700 /home/vagrant/.kube/config
+
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+kubectl wait --for=condition=ready pod --all -n argocd --timeout=300s
