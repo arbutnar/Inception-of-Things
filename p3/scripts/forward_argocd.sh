@@ -15,9 +15,8 @@ ARGO_PASS=$(kubectl get secret -n argocd argocd-initial-admin-secret -oyaml | gr
 echo -e "${PURPLE}ArgoCD Password: ${ARGO_PASS}${RESET}"
 
 if command -v argocd >/dev/null 2>&1; then
-    argocd login localhost:${HOST_PORT} --username admin --password ${ARGO_PASS} --insecure
+    sudo -u vagrant argocd login localhost:${HOST_PORT} --username admin --password ${ARGO_PASS} --insecure
 fi
 
-# sudo apt install vim -y
-# KUBE_EDITOR="vim" kubectl -n argocd edit configmap argocd-cm
-# Comment first apiGroup under resource.exclusions
+
+# To view Endpoints and EndpointSlices from ArgpCD gui: comment first apiGroup under resource.exclusions

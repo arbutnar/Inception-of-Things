@@ -39,7 +39,6 @@ Vagrant.configure(2) do |config|
                 --set gitlab.gitlab-exporter.enabled=false \
                 --set global.grafana.enabled=false \
                 --set gitlab.gitlab-pages.enabled=false \
-                --set registry.enabled=false \
                 --set gitlab.webservice.minReplicas=1 \
                 --set gitlab.webservice.maxReplicas=1 \
                 --set gitlab.sidekiq.minReplicas=1 \
