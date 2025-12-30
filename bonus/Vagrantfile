@@ -2,7 +2,6 @@ MASTER_IP = "192.168.56.113"
 
 Vagrant.configure(2) do |config|
     config.vm.box = "debian/bookworm64"
-    config.vm.synced_folder ".", "/vagrant", type: "nfs", disabled: true
 
     config.vm.provider "libvirt" do |v|
         v.memory = 12288
@@ -16,6 +15,22 @@ Vagrant.configure(2) do |config|
 
         control.vm.provision "shell", path: "../p3/scripts/init.sh"
         control.vm.provision "shell", inline: <<-SHELL
+            k3d cluster create arbutnar \
+                --servers 1 \
+                --agents 2 \
+                --port "80:30080@loadbalancer" \
+                --port "443:30443@loadbalancer" \
+                --port "2222:30022@loadbalancer" \
+                --k3s-arg "--disable=traefik@server:0"
+        SHELL
+        control.vm.provision "shell", path: "../p3/scripts/setup_kubeconfig.sh"
+        control.vm.provision "shell", inline: <<-SHELL
+
+            # Install argocd CLI
+            # curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+            # chmod +x /usr/local/bin/argocd
+
+            # kubectl apply -f /vagrant/confs/ingress.yaml
 
             # Install Helm
             curl -fsSL -o /tmp/helm.tar.gz "https://get.helm.sh/helm-v4.0.0-linux-amd64.tar.gz"
@@ -29,9 +44,10 @@ Vagrant.configure(2) do |config|
             kubectl create namespace gitlab
             helm upgrade --install gitlab gitlab/gitlab -n gitlab \
                 --version 9.6.1 \
+                --set global.ingress.tls.enabled=false \
+                --set global.hosts.https=false \
                 --set installCertmanager=false \
                 --set global.ingress.configureCertmanager=false \
-                --set gitlab-runner.install=false \
                 --set global.kas.enabled=false \
                 --set prometheus.install=false \
                 --set postgresql.metrics.enabled=false \
@@ -45,15 +61,25 @@ Vagrant.configure(2) do |config|
                 --set gitlab.sidekiq.maxReplicas=1 \
                 --set gitlab.gitlab-shell.minReplicas=1 \
                 --set gitlab.gitlab-shell.maxReplicas=1 \
+                --set registry.hpa.minReplicas=1 \
+                --set registry.hpa.maxReplicas=1 \
                 --set nginx-ingress.controller.replicaCount=1 \
                 --set nginx-ingress.controller.service.type=NodePort \
+                --set gitlab.gitlab-shell.service.type=NodePort \
+                --set nginx-ingress.controller.service.nodePorts.http=30080 \
+                --set nginx-ingress.controller.service.nodePorts.https=30443 \
+                --set gitlab.gitlab-shell.service.nodePort=30022 \
+                --set global.hosts.domain=local \
+                --set global.hosts.gitlab.name=gitlab.local \
                 --wait --timeout 1200s
-
-            curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
-            chmod +x /usr/local/bin/argocd
         SHELL
-        control.vm.provision "shell", run: "always", path: "../p3/scripts/forward_argocd.sh", args: ["#{MASTER_IP}"]
-        control.vm.provision "shell", run: "always", path: "scripts/forward_gitlab.sh"
+        control.vm.provision "shell", path: "../p3/scripts/deploy_argocd.sh"
+        control.vm.provision "shell", inline: <<-SHELL
+            kubectl apply -f /vagrant/confs/argocd_ingress.yaml
+        SHELL
+
+        control.vm.provision "shell", run: "always", path: "../p3/scripts/get_argocd_info.sh"
+        control.vm.provision "shell", run: "always", path: "scripts/get_gitlab_info.sh"
     end
 
 end

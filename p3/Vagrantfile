@@ -2,7 +2,6 @@ MASTER_IP = "192.168.56.112"
 
 Vagrant.configure(2) do |config|
     config.vm.box = "debian/bookworm64"
-    config.vm.synced_folder ".", "/vagrant", type: "nfs", disabled: true
 
     config.vm.provider "libvirt" do |v|
         v.memory = 4056
@@ -16,9 +15,18 @@ Vagrant.configure(2) do |config|
 
         control.vm.provision "shell", path: "scripts/init.sh"
         control.vm.provision "shell", inline: <<-SHELL
-            kubectl apply -n argocd -f https://raw.githubusercontent.com/arbutnar/iot-p3-arbutnar/refs/heads/main/application.yaml
+            k3d cluster create arbutnar \
+                --servers 1 \
+                --agents 2 \
+                --port "443:443@loadbalancer" \
+                --port "80:80@loadbalancer"
         SHELL
-        control.vm.provision "shell", run: "always", path: "scripts/forward_argocd.sh", args: ["#{MASTER_IP}"]
+        control.vm.provision "shell", path: "scripts/setup_kubeconfig.sh"
+        control.vm.provision "shell", path: "scripts/deploy_argocd.sh"
+        control.vm.provision "shell", inline: <<-SHELL
+            kubectl apply -f /vagrant/confs
+        SHELL
+        control.vm.provision "shell", run: "always", path: "scripts/get_argocd_info.sh"
     end
 
 end

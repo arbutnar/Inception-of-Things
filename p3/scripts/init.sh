@@ -7,18 +7,7 @@ echo "export KUBE_EDITOR=vim" >> /etc/profile.d/set_env_var.sh
 curl -sSLf https://get.docker.com | bash
 usermod -aG docker vagrant
 
-curl -sSLf "https://dl.k8s.io/release/$(curl -sSLf https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" -o kubectl
-install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+curl -sSLf "https://dl.k8s.io/release/$(curl -sSLf https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" -o /usr/local/bin/kubectl
+chmod 755 /usr/local/bin/kubectl
 
 curl -sSLf https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
-
-k3d cluster create arbutnarS
-
-mkdir -p /home/vagrant/.kube
-k3d kubeconfig get arbutnarS > /home/vagrant/.kube/config
-chown -R vagrant:vagrant /home/vagrant/.kube
-chmod 700 /home/vagrant/.kube/config
-
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
-kubectl wait --for=condition=ready pod --all -n argocd --timeout=300s
