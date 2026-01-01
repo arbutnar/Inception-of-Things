@@ -1560,8 +1560,10 @@ gitlab:
   ## https://docs.gitlab.com/charts/charts/gitlab/gitaly
   #   gitaly:
   ## https://docs.gitlab.com/charts/charts/gitlab/gitlab-shell
-  #   gitlab-shell:
-  #     enabled: false
+  gitlab-shell:
+    service:
+      type: NodePort
+      nodePort: 32022
   ## https://docs.gitlab.com/charts/charts/gitlab/gitlab-pages
   #   gitlab-pages:
   ## https://docs.gitlab.com/charts/charts/gitlab/kas

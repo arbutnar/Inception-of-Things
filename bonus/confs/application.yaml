@@ -1,12 +1,12 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: will-playground
+  name: demo-app
   namespace: argocd
 spec:
   project: default
   source:
-    repoURL: https://gitlab.example.com:2443/root/iot-p3-arbutnar.git
+    repoURL: https://gitlab.arbutnar.local/root/demo-app-deployment
     targetRevision: HEAD
     path: dev
   destination:

@@ -5,4 +5,4 @@ k3d cluster create arbutnar-cluster \
     --agents 2 \
     --port "80:80@loadbalancer" \
     --port "443:443@loadbalancer" \
-    --port "2222:22@loadbalancer"
+    --port "2222:32022@loadbalancer"
