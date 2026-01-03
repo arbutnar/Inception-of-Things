@@ -1,4 +1,6 @@
-MASTER_IP = "192.168.56.113"
+IP = "192.168.56.113"
+HOSTNAME="argocd-bonus.arbutnar.local"
+
 Vagrant.configure(2) do |config|
     config.vm.box = "debian/bookworm64"
     config.vm.provider "libvirt" do |v|
@@ -8,15 +10,20 @@ Vagrant.configure(2) do |config|
     end
     config.vm.define "arbutnarS" do |control|
         control.vm.hostname = "arbutnarS"
-        control.vm.network "private_network", ip: MASTER_IP
+        control.vm.network "private_network",
+            ip: IP,
+            libvirt__network_name: "iot",
+            libvirt__dhcp_enabled: false,
+            libvirt__forward_mode: "nat"
+
         control.vm.provision "shell", path: "../p3/scripts/init.sh"
         control.vm.provision "shell", path: "scripts/create_cluster.sh"
         control.vm.provision "shell", path: "../p3/scripts/setup_kubeconfig.sh"
         control.vm.provision "shell", path: "scripts/install_helm.sh"
         control.vm.provision "shell", path: "scripts/deploy_gitlab.sh"
-        control.vm.provision "shell", path: "../p3/scripts/deploy_argocd.sh"
+        control.vm.provision "shell", path: "../p3/scripts/deploy_argocd.sh", args: ["#{HOSTNAME}"]
 
-        control.vm.provision "shell", run: "always", path: "../p3/scripts/get_argocd_info.sh"
+        control.vm.provision "shell", run: "always", path: "../p3/scripts/get_argocd_info.sh", args: ["#{HOSTNAME}"]
         control.vm.provision "shell", run: "always", path: "scripts/get_gitlab_info.sh"
     end
 end

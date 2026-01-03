@@ -1,4 +1,4 @@
-MASTER_IP = "192.168.56.110"
+IP = "192.168.56.110"
 
 Vagrant.configure(2) do |config|
     config.vm.box = "debian/bookworm64"
@@ -11,12 +11,17 @@ Vagrant.configure(2) do |config|
 
     config.vm.define "arbutnarS" do |control|
         control.vm.hostname = "arbutnarS"
-        control.vm.network "private_network", ip: MASTER_IP
+        control.vm.network "private_network",
+            ip: IP,
+            libvirt__network_name: "iot",
+            libvirt__dhcp_enabled: false,
+            libvirt__forward_mode: "nat"
+
         control.vm.provision "shell", inline: <<-SHELL
             apt-get update -y && apt-get install -y curl
 
             curl -sSLf https://get.k3s.io > /tmp/k3s-install.sh
-            sh /tmp/k3s-install.sh --write-kubeconfig-mode 644 --node-ip=#{MASTER_IP} --advertise-address=#{MASTER_IP} --flannel-iface="eth1"
+            sh /tmp/k3s-install.sh --write-kubeconfig-mode 644 --node-ip=#{IP} --advertise-address=#{IP} --flannel-iface="eth1"
 
             kubectl apply -f /vagrant/confs
         SHELL

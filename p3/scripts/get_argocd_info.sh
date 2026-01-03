@@ -2,7 +2,8 @@
 
 kubectl wait --for=condition=ready pod --field-selector=status.phase!=Succeeded -n argocd --timeout=300s
 
-HOSTNAME=argocd.arbutnar.local
+HOSTNAME="$1"
+
 RESET='\e[0m'
 PURPLE='\e[1;35m'
 echo -e "${PURPLE}ArgoCD URL: https://${HOSTNAME}${RESET}"

@@ -1,7 +1,9 @@
-MASTER_IP = "192.168.56.112"
+IP="192.168.56.112"
+HOSTNAME="argocd.arbutnar.local"
 
 Vagrant.configure(2) do |config|
     config.vm.box = "debian/bookworm64"
+    config.vm.synced_folder ".", "/vagrant", type: "nfs", disabled: true
 
     config.vm.provider "libvirt" do |v|
         v.memory = 4056
@@ -11,16 +13,20 @@ Vagrant.configure(2) do |config|
 
     config.vm.define "arbutnarS" do |control|
         control.vm.hostname = "arbutnarS"
-        control.vm.network "private_network", ip: MASTER_IP
+        control.vm.network "private_network",
+            ip: IP,
+            libvirt__network_name: "iot",
+            libvirt__dhcp_enabled: false,
+            libvirt__forward_mode: "nat"
 
         control.vm.provision "shell", path: "scripts/init.sh"
         control.vm.provision "shell", path: "scripts/create_cluster.sh"
         control.vm.provision "shell", path: "scripts/setup_kubeconfig.sh"
-        control.vm.provision "shell", path: "scripts/deploy_argocd.sh"
+        control.vm.provision "shell", path: "scripts/deploy_argocd.sh", args: ["#{HOSTNAME}"]
         control.vm.provision "shell", inline: <<-SHELL
-            kubectl apply -f /vagrant/confs/application.yaml
+            kubectl apply -n argocd -f https://raw.githubusercontent.com/arbutnar/iot-p3-arbutnar/refs/heads/main/application.yaml
         SHELL
-        control.vm.provision "shell", run: "always", path: "scripts/get_argocd_info.sh"
+        control.vm.provision "shell", run: "always", path: "scripts/get_argocd_info.sh", args: ["#{HOSTNAME}"]
     end
 
 end
