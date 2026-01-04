@@ -1454,8 +1454,10 @@ postgresql:
 ## Installation & configuration charts/registry
 ## https://docs.gitlab.com/charts/architecture/decisions#registry
 ## https://docs.gitlab.com/charts/charts/registry/
-# registry:
-#   enabled: false
+registry:
+  hpa:
+    minReplicas: 1
+    maxReplicas: 1
 
 ## Automatic shared secret generation
 ## https://docs.gitlab.com/charts/installation/secrets
@@ -1552,18 +1554,22 @@ gitlab:
   #   migrations:
   #     enabled: false
   ## https://docs.gitlab.com/charts/charts/gitlab/webservice
-  #   webservice:
-  #     enabled: false
+  webservice:
+    minReplicas: 1
+    maxReplicas: 1
   ## https://docs.gitlab.com/charts/charts/gitlab/sidekiq
-  #   sidekiq:
-  #     enabled: false
+  sidekiq:
+    minReplicas: 1
+    maxReplicas: 1
   ## https://docs.gitlab.com/charts/charts/gitlab/gitaly
   #   gitaly:
   ## https://docs.gitlab.com/charts/charts/gitlab/gitlab-shell
   gitlab-shell:
+    minReplicas: 1
+    maxReplicas: 1
     service:
-      type: NodePort
-      nodePort: 32022
+      type: LoadBalancer
+      port: 22
   ## https://docs.gitlab.com/charts/charts/gitlab/gitlab-pages
   #   gitlab-pages:
   ## https://docs.gitlab.com/charts/charts/gitlab/kas

@@ -1,10 +1,10 @@
 #!/bin/bash
 
 cat > /tmp/registries.yaml <<EOF
-mirrors:
+configs:
   "registry.arbutnar.local":
-    endpoint:
-      - "http://registry.arbutnar.local"
+    tls:
+      insecure_skip_verify: true
 EOF
 
 k3d cluster create arbutnar-cluster \
@@ -12,5 +12,5 @@ k3d cluster create arbutnar-cluster \
     --agents 2 \
     --port "80:80@loadbalancer" \
     --port "443:443@loadbalancer" \
-    --port "2222:32022@loadbalancer" \
+    --port "2222:22@loadbalancer" \
     --registry-config /tmp/registries.yaml
