@@ -1,0 +1,4 @@
+configs:
+  "registry.arbutnar.local":
+    tls:
+      insecure_skip_verify: true

@@ -23,6 +23,9 @@ Vagrant.configure(2) do |config|
         control.vm.provision "shell", path: "scripts/deploy_gitlab.sh"
         control.vm.provision "shell", path: "../p3/scripts/deploy_argocd.sh", args: ["#{HOSTNAME}"]
 
+        control.vm.provision "shell", run: "always", inline: <<-SHELL
+            k3d cluster start arbutnar-cluster
+        SHELL
         control.vm.provision "shell", run: "always", path: "../p3/scripts/get_argocd_info.sh", args: ["#{HOSTNAME}"]
         control.vm.provision "shell", run: "always", path: "scripts/get_gitlab_info.sh"
     end

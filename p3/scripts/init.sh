@@ -1,6 +1,7 @@
 #!/bin/bash
 
 echo "export KUBE_EDITOR=vim" >> /etc/profile.d/set_env_var.sh
+export DEBIAN_FRONTEND=noninteractive
 
 apt-get update -y && apt-get install -y curl vim ca-certificates
 
