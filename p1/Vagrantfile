@@ -1,10 +1,10 @@
-K3S_TOKEN = "mysecrettoken123"
 MASTER_IP = "192.168.56.110"
 WORKER_IP = "192.168.56.111"
+K3S_TOKEN = `cat /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c32`
 
 Vagrant.configure(2) do |config|
     config.vm.box = "debian/bookworm64"
-    config.vm.synced_folder ".", "/vagrant", type: "nfs", disabled: true
+    config.vm.synced_folder ".", "/vagrant", disabled: true
 
     config.vm.provider "libvirt" do |v|
         v.memory = 1024
@@ -22,10 +22,13 @@ Vagrant.configure(2) do |config|
 
         control.vm.provision "shell", inline: <<-SHELL
             apt-get update -y && apt-get install -y curl
-            curl -sSfL https://get.k3s.io  > /tmp/k3s-install.sh
+            curl -sSfL https://get.k3s.io > /tmp/k3s-install.sh
             
             K3S_TOKEN=#{K3S_TOKEN} \
-            sh /tmp/k3s-install.sh --write-kubeconfig-mode 644 --node-ip=#{MASTER_IP} --advertise-address=#{MASTER_IP} --flannel-iface="eth1"
+            sh /tmp/k3s-install.sh --node-ip=#{MASTER_IP} \
+                --write-kubeconfig-mode 644 \
+                --advertise-address=#{MASTER_IP} \
+                --flannel-iface="eth1"
         SHELL
     end
 
