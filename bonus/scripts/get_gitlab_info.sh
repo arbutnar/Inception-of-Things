@@ -10,13 +10,3 @@ echo -e "${CYAN}GitLab Username: root${RESET}"
 
 PASSWORD=$(kubectl get secret -n gitlab gitlab-gitlab-initial-root-password -ojsonpath='{.data.password}' 2>/dev/null | base64 --decode)
 echo -e "${CYAN}GitLab Password: ${PASSWORD}${RESET}"
-
-
-# ssh-keygen -R "[192.168.56.113]:2222" delete old ssh-key
-
-# argocd repo add https://gitlab.local:2443/root/iot-p3-arbutnar.git --insecure-skip-server-verification
-# curl -kL https://gitlab.local:2443/root/iot-p3-arbutnar/-/raw/main/application.yaml?ref_type=heads > /tmp/application.yaml
-# kubectl apply -n argocd -f /tmp/application.yaml
-
-# docker build -t demo-app:v1 -f app/Dockerfile
-# push on docker registry
